@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>BioSeq</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css"
+    integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+  <style>
+    /* Custom CSS for legend */
+    .custom-legend {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #7162c2;
+      /* Bootstrap primary color, you can adjust this */
+      margin-bottom: 1rem;
+    }
+
+    .form-box {
+      border: 1px solid #ddd;
+      /* Border color, you can adjust this */
+      padding: 20px;
+      border-radius: 10px;
+      /* Optional: Add rounded corners */
+      background-color: #f8f9fa;
+      /* Light background color, you can adjust this */
+    }
+
+    .highlighted-step {
+      border: 2px solid #03080e;
+      /* Border color, you can adjust this */
+      padding: 5px;
+      padding-bottom: 0px;
+      padding-right: 10px;
+      border-radius: 5px;
+      /* Optional: Add rounded corners */
+      margin-bottom: 20px;
+      display: inline-block;
+    }
+
+    body {
+      background-color: #f8f9fa;
+      /* Light background color */
+      color: #333;
+      /* Text color */
+    }
+
+    /* Container styling */
+    .container {
+      margin-top: 20px;
+    }
+
+    /* Section styling */
+    #maincontent {
+      padding: 20px;
+    }
+
+    /* Headline styling */
+    .strapline {
+      color: #007bff;
+      /* Bootstrap primary color */
+    }
+
+    /* Tool Parameter Box styling */
+    .jd_toolParameterBox {
+      margin-bottom: 20px;
+      border: 1px solid #ddd;
+      padding: 20px;
+      border-radius: 10px;
+      background-color: #fff;
+    }
+
+    /* Legend styling */
+    .jd_toolParameterBox legend {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #007bff;
+      /* Bootstrap primary color */
+      margin-bottom: 1rem;
+    }
+
+    /* Custom Button styling */
+    .jd_button {
+      background-color: #007bff;
+      color: #fff;
+      padding: 10px 20px;
+      text-decoration: none;
+      border-radius: 5px;
+      display: inline-block;
+    }
+
+    /* Centered content styling */
+    .center {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    /* Text area styling */
+    textarea {
+      display: block;
+      /* Set textarea to block */
+      width: 100%;
+      /* Full width */
+      margin-bottom: 10px;
+      /* Add some space below */
+    }
+  </style>
+
+  <script>
+    function navigateToReport(jobId) {
+      openViewReport();
+      document.getElementById('reportId').value = jobId;
+      getReport('view');
+    }
+
+    function openListReport() {
+      document.getElementById('maincontentCalculateAlignment').style.display = 'none';
+      document.getElementById('maincontentViewReport').style.display = 'none';
+      document.getElementById('maincontentListReport').style.display = 'block';
+
+      var availableJobIds = [];
+      Object.keys(sessionStorage).forEach(function (key) {
+        if (key.startsWith('BioSeq')) {
+          availableJobIds.push(key);
+        }
+      });
+
+      const itemList = document.getElementById('itemList');
+      while (itemList.firstChild) {
+        itemList.removeChild(itemList.firstChild);
+      }
+      availableJobIds.forEach(item => {
+        const listItem = document.createElement('li');
+        var anchorTag = document.createElement('a');
+        anchorTag.onclick = () => {
+          navigateToReport(item);
+        }
+        anchorTag.textContent = item;
+        listItem.appendChild(anchorTag);
+        itemList.appendChild(listItem);
+      });
+    }
+    function updateSequenceType(sequenceType) {
+      var aSequenceLabel = document.getElementById('a-sequence-label');
+      var bSequenceLabel = document.getElementById('b-sequence-label');
+      var aSequenceInput = document.getElementById('a-sequence');
+      var bSequenceInput = document.getElementById('b-sequence');
+
+      if (sequenceType === 'protein') {
+        aSequenceLabel.textContent = 'Enter or paste your first Protein sequence in FASTA format:';
+        bSequenceLabel.textContent = 'Enter or paste your second Protein sequence in FASTA format:';
+        aSequenceInput.placeholder = 'Protein sequence';
+        bSequenceInput.placeholder = 'Protein sequence';
+      } else {
+        aSequenceLabel.textContent = 'Enter or paste your first Nucleotide sequence in FASTA format:';
+        bSequenceLabel.textContent = 'Enter or paste your second Nucleotide sequence in FASTA format:';
+        aSequenceInput.placeholder = 'Nucleotide sequence';
+        bSequenceInput.placeholder = 'Nucleotide sequence';
+      }
+    }
+
+    function openCalculateAlignment() {
+      document.getElementById('maincontentCalculateAlignment').style.display = 'block';
+      document.getElementById('maincontentViewReport').style.display = 'none';
+      document.getElementById('maincontentListReport').style.display = 'none';
+    }
+
+    function openViewReport() {
+      document.getElementById('maincontentCalculateAlignment').style.display = 'none';
+      document.getElementById('maincontentViewReport').style.display = 'block';
+      document.getElementById('maincontentListReport').style.display = 'none';
+    }
+
+    function getReport(action) {
+      var reportId = document.getElementById('reportId').value;
+      var actualReportId = reportId.replace('BioSeq', 'emboss_water')
+
+      if (reportId === '') {
+        alert('Please enter Job Id.');
+      } else {
+        const apiUrl = 'https://www.ebi.ac.uk/Tools/services/rest/emboss_water/result/' + actualReportId + '/out';
+
+        fetch(apiUrl)
+          .then(response => response.text())
+          .then(data => {
+            var sequenceData = JSON.parse(sessionStorage.getItem(reportId));
+            var aSequence = sequenceData.aSequence;
+            var bSequence = sequenceData.bSequence;
+
+            // get character A in string aSequance variable
+            var count1A = (aSequence.match(/A/g) || []).length;
+            var count1T = (aSequence.match(/T/g) || []).length;
+            var count1G = (aSequence.match(/G/g) || []).length;
+            var count1C = (aSequence.match(/C/g) || []).length;
+            var count1GC = (((count1G + count1C) / aSequence.length) * 100);
+
+            // get character A in string bSequance variable
+            var count2A = (bSequence.match(/A/g) || []).length;
+            var count2T = (bSequence.match(/T/g) || []).length;
+            var count2G = (bSequence.match(/G/g) || []).length;
+            var count2C = (bSequence.match(/C/g) || []).length;
+            var count2GC = (((count2G + count2C) / bSequence.length) * 100);
+
+            var data1 = data.replace(/emboss_water/g, 'BioSeq').replace(/water/g, 'BioSeq').replace(/EMBOSS_001/g, 'BIOSEQ_001');
+            var data2 = data1.replace("\n# \n#\n#=======================================\n",
+              "\n# \n#\n#=======================================\n# \n# For Sequance 1\n# Adenine (A) count:" + count1A + "\n# Thymine (T) count:" + count1T + "\n# Guanine (G) count:" + count1G + "\n# Cytosine (C) count:" + count1C + "\n# %G~C content:" + count1GC + "\n#\n# For Sequance 1\n# Adenine (A) count:" + count2A + "\n# Thymine (T) count:" + count2T + "\n# Guanine (G) count:" + count2G + "\n# Cytosine (C) count:" + count2C + "\n# %G~C content:" + count2GC + "\n# \n#=======================================\n");
+
+            if (action === 'download') {
+              const blob = new Blob([data2], { type: 'text/plain' });
+              const url = URL.createObjectURL(blob);
+
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = 'report.txt';
+
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+
+              URL.revokeObjectURL(url);
+            } else {
+              document.getElementById('reportOutput').textContent = data2;
+            }
+
+          })
+          .catch(error => console.error(error));
+      }
+    }
+
+    function submit() {
+      var aSequenceInput = document.getElementById('a-sequence');
+      var bSequenceInput = document.getElementById('b-sequence');
+
+      var aSequence = aSequenceInput.value;
+      var bSequence = bSequenceInput.value;
+
+      if (aSequence === '' || bSequence === '') {
+        alert('Please enter both sequences.');
+      } else {
+        var sequenceType = document.getElementById("pn_stype").value;
+        const apiUrl = 'https://www.ebi.ac.uk/Tools/services/rest/emboss_water/run';
+
+        const formData = new FormData();
+
+        formData.append('program', 'water');
+        formData.append('version', '6.6.0');
+        formData.append('asequence', aSequence);
+        formData.append('bsequence', bSequence);
+        formData.append('stype', 'dna');
+        formData.append('format', 'pair');
+        formData.append('matrix', 'EDNAFULL');
+        formData.append('gapopen', '10');
+        formData.append('gapext', '0.5');
+        formData.append('toolId', 'emboss_water');
+        formData.append('email', 'harshalpatil1313@gmail.com');
+        formData.append('title', 'BioSeq\'s job');
+
+        fetch(apiUrl, {
+          method: 'POST',
+          body: formData // Convert the data object to a JSON string
+        })
+          .then(response => {
+            // Check if the response is successful
+            if (!response.ok) {
+              throw new Error('Network response was not ok');
+            }
+            // Parse the JSON response
+            return response.text();
+          })
+          .then(data => {
+            var jobId = data.replace('emboss_water', 'BioSeq');
+            var sequanceData = { aSequence: aSequence, bSequence: bSequence };
+            sessionStorage.setItem(jobId, JSON.stringify(sequanceData));
+            alert("Job ID: " + jobId);
+            openViewReport();
+            document.getElementById('reportId').value = jobId;
+            getReport('view');
+          })
+          .catch(error => {
+            // Handle any errors that occurred during the fetch
+            console.error('Fetch error:', error);
+          });
+      }
+    }
+  </script>
+
+
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light bg-dark">
+    <a class="navbar-brand text-white" href="#">BioSeq</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+      aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav mr-auto">
+        <li class="nav-item active">
+          <a class="nav-link text-white" onclick="openCalculateAlignment()">Calculate Alignment <span
+              class="sr-only">(current)</span></a>
+        </li>
+        <li class="nav-item active">
+          <a class="nav-link text-white" onclick="openViewReport()">View Report <span
+              class="sr-only">(current)</span></a>
+        </li>
+        <li class="nav-item active">
+          <a class="nav-link text-white" onclick="openListReport()">List Reports <span
+              class="sr-only">(current)</span></a>
+        </li>
+      </ul>
+      <!-- <form class="form-inline my-2 my-lg-0">
+        <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Login</button>
+      </form> -->
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <div class="h1 ">Pairwise Sequence Alignment</div>
+    <div class="p">BioSeq reads two input sequences and writes their optimal sequence alignment to file.</div>
+  </div>
+
+  <section id="maincontentCalculateAlignment" class="omega grid_24">
+    <div class="container mt-4">
+
+
+      <div id="ebi_mainContent">
+
+
+        <div id="use">
+          <div id="jd_toolSubmissionForm">
+            <input alt="tool" id="tool" name="tool" type="hidden" value="emboss_needle">
+            <!-- Add other hidden inputs as needed -->
+
+            <div class="jd_toolParameterBox">
+              <fieldset>
+                <legend>STEP 1 - Enter your
+                  sequences</legend>
+                <p>Enter a pair of
+                  <select id="pn_stype" name="pn_stype" onchange="updateSequenceType(this.value)" style="width: 99%"
+                    #pn_stype>
+                    <option selected="selected" value="protein">PROTEIN</option>
+                    <option value="nucleotide">NUCLEOTIDE</option>
+                  </select>
+                </p>
+                <p>
+                  <label id="a-sequence-label" for="a-sequence"> Enter or paste your first Protein
+                    sequence in FASTA format:
+
+                  </label>
+                  <textarea cols="47" id="a-sequence" name="a-sequence" rows="7"
+                    placeholder="Protein sequence"></textarea>
+                </p>
+                <div class="text-dark p mb-2"><strong>AND</strong></div>
+                <p>
+                  <label id="b-sequence-label" for="b-sequence"> Enter or paste your second Protein sequence in FASTA
+                    format:
+                  </label>
+                  <textarea cols="47" id="b-sequence" name="b-sequence" rows="7"
+                    placeholder="Protein sequence"></textarea>
+                </p>
+              </fieldset>
+            </div>
+
+            <div class="jd_toolParameterBox">
+              <fieldset>
+                <legend>STEP 2 - Set your pairwise alignment options</legend>
+
+                <div class="form-group">
+                  <label for="exampleFormControlInput1">OUTPUT FORMAT </label>
+                  <input type="email" class="form-control" id="exampleFormControlInput1" value="pair" placeholder="pair">
+                </div>
+              </fieldset>
+            </div>
+
+            <div class="jd_toolParameterBox">
+              <fieldset>
+                <button type="button" onclick="submit()" class="btn btn-primary mt-3">Submit</button>
+              </fieldset>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="maincontentViewReport" class="omega grid_24" style="display: none;">
+    <div class="container mt-4">
+
+
+      <div id="ebi_mainContent">
+
+
+        <div id="use">
+          <div id="jd_toolSubmissionForm">
+            <input alt="tool" id="tool" name="tool" type="hidden" value="emboss_needle">
+            <!-- Add other hidden inputs as needed -->
+
+            <div class="jd_toolParameterBox">
+              <fieldset>
+                <legend>Enter Job Id</legend>
+                <input type="text" id="reportId" name="reportId" placeholder="Enter Job Id" />
+                <br />
+                <button type="button" onclick="getReport('view')" class="btn btn-primary mt-3">Submit</button>
+                <button type="button" onclick="getReport('download')" class="btn btn-primary mt-3">Download</button>
+              </fieldset>
+            </div>
+
+            <div class="jd_toolParameterBox">
+              <fieldset>
+                <pre id="reportOutput"></pre>
+              </fieldset>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="maincontentListReport" class="omega grid_24" style="display: none;">
+    <div class="container mt-4">
+
+
+      <div id="ebi_mainContent">
+
+
+        <div id="use">
+          <div id="jd_toolSubmissionForm">
+            <input alt="tool" id="tool" name="tool" type="hidden" value="emboss_needle">
+            <!-- Add other hidden inputs as needed -->
+
+            <div class="jd_toolParameterBox">
+              <fieldset>
+                <!-- show availableJobIds in a list -->
+                <ul id="itemList"></ul>
+              </fieldset>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+
+</html>
